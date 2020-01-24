@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jdevoo/nucoll/util"
+	"github.com/deklanw/nucoll/util"
 )
 
 // NucollTransport holds the config and the structure to deal with throttling
