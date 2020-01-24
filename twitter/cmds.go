@@ -300,10 +300,16 @@ func (ns Twitter) Fetch(forceFlag bool, fetchCount int, args []string) {
 	if err = util.CSVReader(args[0], util.DatExt, &data); err != nil {
 		log.Fatal(err)
 	}
+
+	retrievedCounter := 0
 	for _, user := range data {
+		retrievedCounter++
+
+		log.Printf("%d ", retrievedCounter)
 		uid := fmt.Sprintf("%d", user.ID)
 		// skip if file exists and flag to force call not set
 		if !forceFlag && util.FdatExists(uid) {
+			log.Printf("%s was cached.\n", user.ScreenName)
 			continue
 		}
 		if user.FriendsCount > fetchCount {
