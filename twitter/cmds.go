@@ -305,15 +305,14 @@ func (ns Twitter) Fetch(forceFlag bool, fetchCount int, args []string) {
 	for _, user := range data {
 		retrievedCounter++
 
-		log.Printf("%d ", retrievedCounter)
 		uid := fmt.Sprintf("%d", user.ID)
 		// skip if file exists and flag to force call not set
 		if !forceFlag && util.FdatExists(uid) {
-			log.Printf("%s was cached.\n", user.ScreenName)
+			log.Printf("%d %s was cached.\n", retrievedCounter, user.ScreenName)
 			continue
 		}
 		if user.FriendsCount > fetchCount {
-			log.Printf("skipping %s (%d friends)\n", user.ScreenName, user.FriendsCount)
+			log.Printf("%d skipping %s (%d friends)\n", retrievedCounter, user.ScreenName, user.FriendsCount)
 			continue
 		}
 		ids, err := ns.ids("friends", uid)
@@ -323,7 +322,7 @@ func (ns Twitter) Fetch(forceFlag bool, fetchCount int, args []string) {
 		if _, err := util.FdatWriter(uid, ids); err != nil {
 			log.Fatal("failed to write friends file: ", err)
 		}
-		log.Printf("processed %s\n", user.ScreenName)
+		log.Printf("%d processed %s\n", retrievedCounter, user.ScreenName)
 	}
 }
 
