@@ -292,19 +292,30 @@ func GMLWriter(handles []string, data interface{}, includeMissingIDs bool, cols 
 		gmlFile.WriteString("  node [\n")
 		for _, c := range cols {
 			v := fmt.Sprintf("%v", t.FieldByName(c).Interface())
+			digitsOnly := false
 			switch {
 			case c == "ID":
 				friendMap[v] = subject
 				if subject == "" {
 					handleMap[v] = handle
 				}
+				digitsOnly = true
 			case c == label:
 				c = "Label"
+			case c == "FriendsCount":
+				digitsOnly = true
+			case c == "FollowersCount":
+				digitsOnly = true
+			case c == "ListedCount":
+				digitsOnly = true
+			case c == "StatusesCount":
+				digitsOnly = true
 			}
-			if DigitsOnly(v) {
+			if digitsOnly {
 				gmlFile.WriteString(fmt.Sprintf("    %s %v\n", c, v))
 			} else {
-				gmlFile.WriteString(fmt.Sprintf("    %s \"%v\"\n", c, v))
+				escapedString := strings.ReplaceAll(v, "\"", "'")
+				gmlFile.WriteString(fmt.Sprintf("    %s \"%v\"\n", c, escapedString))
 			}
 		}
 		gmlFile.WriteString(fmt.Sprintf("    Processed \"%t\"\n", processed))

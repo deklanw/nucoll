@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/deklanw/nucoll/util"
+	"nucoll/util"
 )
 
 // Twitter client with custom RoundTripper to handle throttling

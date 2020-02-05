@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/deklanw/nucoll/twitter"
-	"github.com/deklanw/nucoll/util"
+	"nucoll/twitter"
+	"nucoll/util"
 )
 
 // SocialNetworkService defines the interface for services such as Twitter
