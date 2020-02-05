@@ -39,6 +39,7 @@ type SearchResult struct {
 type UserObject struct {
 	ID              uint64 `json:"id"`
 	ScreenName      string `json:"screen_name"`
+	Name            string `json:"name"`
 	FriendsCount    int    `json:"friends_count"`
 	FollowersCount  int    `json:"followers_count"`
 	ListedCount     int    `json:"listed_count"`
@@ -47,6 +48,7 @@ type UserObject struct {
 	URL             string `json:"url"`
 	ProfileImageURL string `json:"profile_image_url"`
 	Location        string `json:"location"`
+	Description     string `json:"description"`
 	Relation        string
 	Subject         string
 }
@@ -198,7 +200,7 @@ func (ns Twitter) retweetersOf(handle string, maxCount int) ([]string, error) {
 	return ids, nil
 }
 
-// Init supports retrieve handles from: list membership, a query file, followers who retweet or a friend/follow relationship
+// Init supports retrieving from: list membership, a query file, followers who retweet or a friend/follow relationship
 func (ns Twitter) Init(followersFlag bool, maxPostCount int, queryFlag bool, nomentionFlag bool, membership string, imageFlag bool, args []string) {
 	var result []UserObject
 	var err error
@@ -331,12 +333,16 @@ func (ns Twitter) Edgelist(egoFlag bool, missingFlag bool, args []string) {
 	var cols = []string{
 		"ID",
 		"ScreenName",
+		"Name",
 		"FriendsCount",
 		"FollowersCount",
 		"ListedCount",
 		"StatusesCount",
 		"CreatedAt",
+		"URL",
 		"ProfileImageURL",
+		"Location",
+		"Description",
 		"Relation",
 		"Subject",
 	}
