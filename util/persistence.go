@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -264,9 +265,7 @@ func DownloadImage(id uint64, url string) (string, error) {
 // spec from http://www.fim.uni-passau.de/fileadmin/files/lehrstuhl/brandenburg/projekte/gml/gml-technical-report.pdf
 func GMLWriter(handles []string, data interface{}, includeMissingIDs bool, cols []string, label string) (string, error) {
 	const perm = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	replacer := strings.NewReplacer("\"", "&quot;",
-		"&", "&amp;",
-	)
+	replacer := strings.NewReplacer("\"", "'")
 
 	items := reflect.ValueOf(data)
 	if items.Kind() != reflect.Slice || items.Len() == 0 {
@@ -317,7 +316,13 @@ func GMLWriter(handles []string, data interface{}, includeMissingIDs bool, cols 
 			if digitsOnly {
 				gmlFile.WriteString(fmt.Sprintf("    %s %v\n", c, v))
 			} else {
+				// gml can't handle " so just replace with ' instead of escaping or replacing with space
 				escapedString := replacer.Replace(v)
+
+				// remove pesky control characters etc which interfere with xml
+				escapedString = strings.TrimFunc(escapedString, func(r rune) bool {
+					return !unicode.IsGraphic(r)
+				})
 				gmlFile.WriteString(fmt.Sprintf("    %s \"%v\"\n", c, escapedString))
 			}
 		}
