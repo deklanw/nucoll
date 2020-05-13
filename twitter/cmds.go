@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"nucoll/types"
 	"nucoll/util"
 )
 
@@ -24,33 +25,13 @@ type IdsResult struct {
 
 // MembersResult for members REST call
 type MembersResult struct {
-	Users      []UserObject
+	Users      []types.UserObject
 	NextCursor uint64 `json:"next_cursor"`
 }
 
 // SearchResult for search REST call
 type SearchResult struct {
 	Statuses []TweetObject
-}
-
-// UserObject defines attributes retrieved by client for a give user
-// Relation can be one of "friends", "followers", "retweeter", or list name
-// Subject is the handle for which the record relation holds e.g. membership of list
-type UserObject struct {
-	ID              uint64 `json:"id"`
-	ScreenName      string `json:"screen_name"`
-	Name            string `json:"name"`
-	FriendsCount    int    `json:"friends_count"`
-	FollowersCount  int    `json:"followers_count"`
-	ListedCount     int    `json:"listed_count"`
-	StatusesCount   int    `json:"statuses_count"`
-	CreatedAt       string `json:"created_at"`
-	URL             string `json:"url"`
-	ProfileImageURL string `json:"profile_image_url"`
-	Location        string `json:"location"`
-	Description     string `json:"description"`
-	Relation        string
-	Subject         string
 }
 
 // TweetObject defines attributes retrieved by client for a given post
@@ -103,7 +84,7 @@ func (ns Twitter) ids(relation string, param string) ([]string, error) {
 }
 
 // members returns an array of hydrated nucoll user objects belonging to a list
-func (ns Twitter) members(list string, param string) ([]UserObject, error) {
+func (ns Twitter) members(list string, param string) ([]types.UserObject, error) {
 	var result MembersResult
 	const endpoint = "https://api.twitter.com/1.1/lists/members.json?slug=%s&owner_screen_name=%s&count=5000&skip_status=true"
 
@@ -136,9 +117,9 @@ func (ns Twitter) members(list string, param string) ([]UserObject, error) {
 }
 
 // show returns a hydrated user object for a given handle
-func (ns Twitter) show(handle string) (UserObject, error) {
+func (ns Twitter) show(handle string) (types.UserObject, error) {
 	var endpoint string
-	var result UserObject
+	var result types.UserObject
 
 	if util.DigitsOnly(handle) {
 		endpoint = "https://api.twitter.com/1.1/users/show.json?user_id=%s"
@@ -202,7 +183,7 @@ func (ns Twitter) retweetersOf(handle string, maxCount int) ([]string, error) {
 
 // Init supports retrieving from: list membership, a query file, followers who retweet or a friend/follow relationship
 func (ns Twitter) Init(followersFlag bool, maxPostCount int, queryFlag bool, nomentionFlag bool, membership string, imageFlag bool, args []string) {
-	var result []UserObject
+	var result []types.UserObject
 	var err error
 	var ids []string
 	var relation string
@@ -298,7 +279,7 @@ func (ns Twitter) Fetch(forceFlag bool, fetchCount int, args []string) {
 		log.Fatal("failed to create Twitter client: ", err)
 	}
 
-	data := []UserObject{}
+	data := []types.UserObject{}
 	if err = util.CSVReader(args[0], util.DatExt, &data); err != nil {
 		log.Fatal(err)
 	}
@@ -330,32 +311,16 @@ func (ns Twitter) Fetch(forceFlag bool, fetchCount int, args []string) {
 
 // Edgelist constructs the network of who is "friends" with whom among handles returned by Init
 func (ns Twitter) Edgelist(egoFlag bool, missingFlag bool, args []string) {
-	var cols = []string{
-		"ID",
-		"ScreenName",
-		"Name",
-		"FriendsCount",
-		"FollowersCount",
-		"ListedCount",
-		"StatusesCount",
-		"CreatedAt",
-		"URL",
-		"ProfileImageURL",
-		"Location",
-		"Description",
-		"Relation",
-		"Subject",
-	}
 	var filename string
 	var err error
 
-	data := []UserObject{}
+	data := []types.UserObject{}
 	for _, handle := range args {
 		if err = util.CSVReader(handle, util.DatExt, &data); err != nil {
 			log.Fatal(err)
 		}
 		if egoFlag {
-			var self UserObject
+			var self types.UserObject
 			ns.Client, err = NewClient()
 			if err != nil {
 				log.Fatal("failed to create Twitter client: ", err)
@@ -368,9 +333,13 @@ func (ns Twitter) Edgelist(egoFlag bool, missingFlag bool, args []string) {
 		}
 	}
 	// call GMLWriter using ScreenName as label for nodes
-	if filename, err = util.GMLWriter(args, data, missingFlag, cols, "ScreenName"); err != nil {
+
+	if filename, err = util.GraphMLWriter(args, data, missingFlag); err != nil {
 		log.Fatal(err)
 	}
+	// if filename, err = util.GMLWriter(args, data, missingFlag, cols, "ScreenName"); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	log.Printf("%s created\n", filename)
 }
@@ -447,7 +416,7 @@ func (ns Twitter) Posts(queryFlag bool, list string, postID uint64, args []strin
 
 // Resolve converts screen names to IDs and vice versa along with basic stats
 func (ns Twitter) Resolve(args []string) {
-	var uo UserObject
+	var uo types.UserObject
 	var err error
 
 	ns.Client, err = NewClient()

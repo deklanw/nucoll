@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +14,10 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"nucoll/types"
+
+	"github.com/yaricom/goGraphML/graphml"
 )
 
 const (
@@ -259,6 +264,132 @@ func DownloadImage(id uint64, url string) (string, error) {
 	}
 
 	return filename, nil
+}
+
+// GraphMLWriter save with GraphML
+func GraphMLWriter(handles []string, data []types.UserObject, includeMissingIDs bool) (string, error) {
+	gml := graphml.NewGraphML("Twitter network")
+
+	// not sure what this is for
+	graphAttributes := make(map[string]interface{})
+	graph, err := gml.AddGraph("Twitter network", graphml.EdgeDirectionDirected, graphAttributes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	gml.RegisterKey(graphml.KeyForNode, "TwitterID", "TwitterID", reflect.Int64, nil)
+	gml.RegisterKey(graphml.KeyForNode, "ScreenName", "ScreenName", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Name", "Name", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "FriendsCount", "FriendsCount", reflect.Int, nil)
+	gml.RegisterKey(graphml.KeyForNode, "FollowersCount", "FollowersCount", reflect.Int, nil)
+	gml.RegisterKey(graphml.KeyForNode, "ListedCount", "ListedCount", reflect.Int, nil)
+	gml.RegisterKey(graphml.KeyForNode, "StatusesCount", "StatusesCount", reflect.Int, nil)
+	gml.RegisterKey(graphml.KeyForNode, "CreatedAt", "CreatedAt", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "URL", "URL", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "ProfileImageURL", "ProfileImageURL", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Location", "Location", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Description", "Description", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Relation", "Relation", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Subject", "Subject", reflect.String, nil)
+	gml.RegisterKey(graphml.KeyForNode, "Processed", "Processed", reflect.Bool, nil)
+
+	filename := strings.Join(handles, "_") + ".graphml"
+
+	friendMap := make(map[string]string)
+	handleMap := make(map[string]string)
+	nodeMap := make(map[string]*graphml.Node)
+
+	for _, userObject := range data {
+		idStr := strconv.FormatUint(userObject.ID, 10)
+		processed := FdatExists(idStr)
+		if !includeMissingIDs && !processed && userObject.Subject != "" {
+			continue
+		}
+
+		friendMap[idStr] = userObject.Subject
+		if userObject.Subject == "" {
+			handleMap[idStr] = userObject.ScreenName
+		}
+
+		// this is technically dangerous since userObject.ID is uint64
+		// however in practice the Twitter IDs (seemingly) won't overflow this
+		// just need an Int64 to satisfy the graphml library
+		// should probably just modify every uint64 in this library into an int64
+		numericID, err := strconv.ParseInt(idStr, 10, 64)
+
+		attributes := make(map[string]interface{})
+		attributes["TwitterID"] = numericID
+		attributes["ScreenName"] = userObject.ScreenName
+		attributes["Name"] = userObject.Name
+		attributes["FriendsCount"] = userObject.FriendsCount
+		attributes["FollowersCount"] = userObject.FollowersCount
+		attributes["ListedCount"] = userObject.ListedCount
+		attributes["StatusesCount"] = userObject.StatusesCount
+		attributes["CreatedAt"] = userObject.CreatedAt
+		attributes["URL"] = userObject.URL
+		attributes["ProfileImageURL"] = userObject.ProfileImageURL
+		attributes["Location"] = userObject.Location
+		attributes["Description"] = userObject.Description
+		attributes["Relation"] = userObject.Relation
+		attributes["Subject"] = userObject.Subject
+		attributes["Processed"] = processed
+
+		node, err := graph.AddNode(attributes, "")
+		if err != nil {
+			log.Fatal(err)
+		}
+		nodeMap[idStr] = node
+
+	}
+	for from, subject := range friendMap {
+		switch {
+		// handle ego case
+		case subject == "":
+			for to, handle := range friendMap {
+				if handle == handleMap[from] {
+
+					fromNode := nodeMap[from]
+					toNode := nodeMap[to]
+
+					// not sure what this is for
+					edgeAttributes := make(map[string]interface{})
+
+					graph.AddEdge(fromNode, toNode, edgeAttributes, graphml.EdgeDirectionDefault, "")
+				}
+			}
+			continue
+		default:
+			fdatFile, err := os.Open(FdatDir + "/" + from + FdatExt)
+			if err != nil {
+				continue
+			}
+			defer fdatFile.Close()
+			scanner := bufio.NewScanner(fdatFile)
+			for scanner.Scan() {
+				to := scanner.Text()
+				if friendMap[to] != "" || handleMap[to] != "" {
+
+					fromNode := nodeMap[from]
+					toNode := nodeMap[to]
+
+					// not sure what this is for
+					edgeAttributes := make(map[string]interface{})
+
+					graph.AddEdge(fromNode, toNode, edgeAttributes, graphml.EdgeDirectionDefault, "")
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	myFile, err := os.Create(filename)
+	defer myFile.Close()
+	err = gml.Encode(myFile, false)
+
+	return filename, nil
+
 }
 
 // GMLWriter generates GML file for given array of handles using cols as node properties and sets label to given attribute
